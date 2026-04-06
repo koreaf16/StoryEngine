@@ -1,0 +1,54 @@
+# Node.js & Build Artifacts
+node_modules/
+dist/
+dist-ssr/
+*.local
+package-lock.json.tmp
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Story Engine Specifics
+# Generated assets, AI data, and temporary storage
+backend/storage/
+backend/storage_data/
+backend/uploads/
+# Specific logs from story engine execution
+backend/*.log
+backend/*.txt
+frontend/*.log
+*.log
+
+# Editor & OS Files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# AI/Python Scripts related
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+.coverage
+.tox/
+venv/
+.venv/
+
+# Backup & Local Tools
+backup/
+.gemini/
+.claude/
+.agent/
+.agents/

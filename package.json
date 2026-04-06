@@ -1,0 +1,8 @@
+{
+  "name": "story-engine",
+  "version": "1.0.0",
+  "description": "Story Engine full-stack dev environment",
+  "scripts": {
+    "dev": "node dev.js"
+  }
+}

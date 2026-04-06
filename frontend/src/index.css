@@ -1,0 +1,42 @@
+/**
+ * @file index.css
+ * @description 글로벌 스타일. Tailwind CSS 디렉티브 + 커스텀 폰트 + 기본 다크 테마.
+ * @usage main.jsx에서 import. 앱 전체에 적용.
+ * @connects Tailwind CSS v4, Google Fonts (Inter, Space Grotesk)
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-headline: 'Space Grotesk', sans-serif;
+
+  --color-surface: #0f172a;
+  --color-surface-card: #1e293b;
+  --color-surface-hover: #334155;
+  --color-border: #334155;
+  --color-border-dashed: #475569;
+
+  --color-accent: #14b8a6;
+  --color-accent-hover: #0d9488;
+
+  --color-badge-character: #14b8a6;
+  --color-badge-npc: #a78bfa;
+  --color-badge-location: #60a5fa;
+  --color-badge-item: #fb923c;
+  --color-badge-monster: #94a3b8;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-surface);
+  color: #e2e8f0;
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-headline);
+}
