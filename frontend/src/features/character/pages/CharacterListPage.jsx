@@ -21,7 +21,7 @@ export default function CharacterListPage() {
   }
 
   const assets = project.assets ?? []
-  const ttsAssets = assets.filter((asset) => asset.is_protagonist && asset.audio_type === 'TTS')
+  const ttsAssets = assets.filter((asset) => asset.is_protagonist && asset.asset_type === 'CHARACTER')
   const confirmedCount = ttsAssets.filter((asset) => asset.profile_status === 'CONFIRMED').length
   const progressWidth = ttsAssets.length > 0 ? (confirmedCount / ttsAssets.length) * 100 : 0
 
@@ -38,7 +38,7 @@ export default function CharacterListPage() {
           캐릭터 설정
         </h2>
         <p className="text-sm text-slate-400 mt-1">
-          주인공 캐릭터의 성격, 말투, 과거를 설정합니다. TTS 음성을 가진 주인공만 표시됩니다.
+          주인공 캐릭터의 성격, 말투, 과거를 설정합니다.
         </p>
       </div>
 
@@ -60,7 +60,7 @@ export default function CharacterListPage() {
       {/* 캐릭터 목록 */}
       {ttsAssets.length === 0 ? (
         <div className="text-center py-12 text-slate-500">
-          주인공 TTS 캐릭터가 없습니다. 에셋 확정 단계에서 주인공에 is_protagonist를 설정해주세요.
+          주인공 캐릭터가 없습니다. 에셋 확정 단계에서 CHARACTER 타입 에셋에 주인공(★)을 설정해주세요.
         </div>
       ) : (
         <div className="space-y-2">

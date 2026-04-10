@@ -81,37 +81,39 @@ export function ImageSection({ category, images, selectedPresets, onToggleSelect
         <span className="text-xs text-slate-500">{images.length} images</span>
         <div className="h-px flex-1 bg-slate-700/60" />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-4 gap-2 xl:grid-cols-5">
         {images.map((image) => {
           const isSelected = image.preset_key ? selectedPresets.includes(image.preset_key) : false
 
           return (
-            <article key={image.image_id ?? image.preset_name} className="overflow-hidden rounded-xl border border-slate-700 bg-slate-800/80">
+            <article
+              key={image.image_id ?? image.preset_name}
+              onClick={() => image.preset_key && onToggleSelection(image.preset_key)}
+              className={`relative cursor-pointer overflow-hidden rounded-lg ring-2 transition-all ${
+                isSelected ? 'ring-teal-500' : 'ring-slate-700 hover:ring-slate-500'
+              }`}
+            >
               <div className="aspect-square bg-slate-900">
                 <img src={image.image_url} alt={image.preset_name ?? 'Derived'} className="h-full w-full object-cover" />
               </div>
-              <div className="space-y-3 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium text-slate-100">{image.preset_name || 'Derived image'}</div>
-                    {image.face_distance !== null && image.face_distance !== undefined && (
-                      <div className="mt-1 text-xs text-slate-500">Distance: {Number(image.face_distance).toFixed(3)}</div>
-                    )}
-                  </div>
+              {/* 선택 체크 */}
+              {isSelected && (
+                <div className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-teal-500 shadow">
+                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+              {/* 탈락 오버레이 */}
+              {image.filter_result === 'FAIL' && (
+                <div className="absolute inset-0 bg-red-900/30 pointer-events-none" />
+              )}
+              {/* 하단 레이블 */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/75 to-transparent px-1.5 py-1">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate text-[10px] text-slate-300">{image.preset_name}</span>
                   <FilterBadge result={image.filter_result} />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => image.preset_key && onToggleSelection(image.preset_key)}
-                  disabled={!image.preset_key}
-                  className={`w-full rounded-lg border px-3 py-2 text-sm transition-colors ${
-                    isSelected
-                      ? 'border-teal-500/40 bg-teal-500/15 text-teal-200'
-                      : 'border-slate-600 bg-slate-900/30 text-slate-300 hover:border-slate-500'
-                  } disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500`}
-                >
-                  {isSelected ? 'Selected for regenerate' : 'Select for regenerate'}
-                </button>
               </div>
             </article>
           )

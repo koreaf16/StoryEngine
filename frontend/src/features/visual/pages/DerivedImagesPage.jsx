@@ -15,7 +15,7 @@ import DerivedCategoryGroup from '../components/derived/DerivedCategoryGroup.jsx
 import ComfyUIQueueStatus from '../components/anchor/ComfyUIQueueStatus.jsx'
 import PipelineProgressBar from '../components/derived/PipelineProgressBar.jsx'
 import FilterSummary from '../components/derived/FilterSummary.jsx'
-import { startLoraTraining } from '../../../services/visual/loraApi.js'
+import { startLoraTraining, recoverLora } from '../../../services/visual/loraApi.js'
 
 const EMPTY_IMAGES = []
 
@@ -24,9 +24,11 @@ export default function DerivedImagesPage() {
   const navigate = useNavigate()
   const project = useProjectStore((s) => s.getProject(id))
   const setLoraTraining = useProjectStore((s) => s.setLoraTraining)
+  const completeLoraTraining = useProjectStore((s) => s.completeLoraTraining)
   const asset = project?.assets?.find((candidate) => candidate.asset_id === assetId)
 
   const [isStartingLora, setIsStartingLora] = useState(false)
+  const [isRecovering, setIsRecovering] = useState(false)
   const [loraError, setLoraError] = useState(null)
   const [selectedPresets, setSelectedPresets] = useState([])
 
@@ -70,6 +72,26 @@ export default function DerivedImagesPage() {
         : [...prev, presetKey]
     ))
   }, [])
+
+  async function handleRecover() {
+    setIsRecovering(true)
+    setLoraError(null)
+    try {
+      const data = await recoverLora({ projectId: id, assetId })
+      completeLoraTraining(id, assetId, {
+        status: 'done',
+        trigger_word: data.trigger_word,
+        lora_filename: data.lora_filename,
+        lora_path: data.lora_path,
+      })
+      navigate(`/project/${id}/visual/${assetId}/complete`)
+    } catch (err) {
+      logError('DerivedImagesPage.handleRecover', err, { projectId: id, assetId })
+      setLoraError('ComfyUI output에서 LoRA 파일을 찾을 수 없습니다.')
+    } finally {
+      setIsRecovering(false)
+    }
+  }
 
   async function handleStartLora() {
     if (asset?.pipeline_status !== 'DERIVED_FILTERED') {
@@ -215,13 +237,23 @@ export default function DerivedImagesPage() {
             </button>
           </div>
 
-          <button
-            onClick={handleStartLora}
-            disabled={!canStartLora || isStartingLora}
-            className="rounded-lg bg-teal-600 py-3 font-medium text-white transition-colors hover:bg-teal-500 disabled:cursor-not-allowed disabled:bg-slate-700"
-          >
-            {isStartingLora ? 'Starting LoRA...' : 'Start LoRA training'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleStartLora}
+              disabled={!canStartLora || isStartingLora || isRecovering}
+              className="flex-1 rounded-lg bg-teal-600 py-3 font-medium text-white transition-colors hover:bg-teal-500 disabled:cursor-not-allowed disabled:bg-slate-700"
+            >
+              {isStartingLora ? 'Starting LoRA...' : 'Start LoRA training'}
+            </button>
+            <button
+              onClick={handleRecover}
+              disabled={!canStartLora || isRecovering || isStartingLora}
+              title="ComfyUI output에 이미 학습된 파일이 있으면 가져옵니다"
+              className="rounded-lg border border-slate-600 bg-slate-800 px-4 py-3 text-sm font-medium text-slate-300 transition-colors hover:border-slate-500 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isRecovering ? '가져오는 중...' : '파일 가져오기'}
+            </button>
+          </div>
         </div>
       )}
     </div>

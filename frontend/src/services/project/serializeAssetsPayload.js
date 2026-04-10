@@ -27,6 +27,10 @@ function serializeAsset(asset) {
     anchor_image_id: asset.anchor_image_id ?? asset.anchor_image?.image_id ?? null,
     anchor_embedding: serializeAnchorEmbedding(asset.anchor_embedding),
     lora_path: asset.lora_path ?? asset.lora_result?.lora_path ?? null,
+    trigger_word: asset.trigger_word ?? asset.lora_result?.trigger_word ?? null,
+    is_protagonist: asset.is_protagonist === true,
+    outfit_prompt: asset.outfit_prompt ?? null,
+    outfit_anchor_id: asset.outfit_anchor_id ?? null,
   }
 }
 

@@ -2,7 +2,7 @@
 
 ## 시스템 정의
 
-Story Engine은 직접 영상을 렌더링하지 않는다. 외부 Video Factory(Wan 2.2, 립싱크 노드 등)가 즉시 GPU 연산을 시작할 수 있도록 **완벽한 촬영 대본(Shot List)**과 **렌더링 에셋(LoRA, TTS, SFX)**을 자동 매핑해주는 오케스트레이터이다.
+Story Engine은 직접 영상을 렌더링하지 않는다. 외부 Video Factory(Wan 2.2, 립싱크 노드 등)가 즉시 GPU 연산을 시작할 수 있도록 **완벽한 촬영 대본(Shot List)**과 **렌더링 에셋(TTS, SFX)**을 자동 매핑해주는 오케스트레이터이다.
 
 ## 핵심 설계 원칙
 
@@ -12,7 +12,7 @@ Story Engine은 직접 영상을 렌더링하지 않는다. 외부 Video Factory
 
 ### 유니버설 렌더링 폴백
 
-모든 에셋은 기본적으로 텍스트(PROMPT)로 등록된다. 시각적 일관성이 필요한 시점에 사용자가 직접 LoRA로 승격(On-Demand)한다. LoRA가 없어도 텍스트 묘사로 렌더링이 작동한다.
+모든 에셋은 기본적으로 텍스트(PROMPT)로 등록된다. 시각적 일관성을 위해 앵커 이미지와 파생 이미지를 생성하여 참조 에셋으로 활용한다.
 
 ### 점진적 세계 성장
 
@@ -24,7 +24,7 @@ Story Engine은 직접 영상을 렌더링하지 않는다. 외부 Video Factory
 0. 프로젝트 선택/생성
 1. 대본 입력 → 씨앗 + 방향타 + 에셋 등록 + 음성 배정
 2. 캐릭터 잡기 → 주요 캐릭터 성격/말투/과거사
-3. 외형 공장 → 아무 에셋, 아무 시점에 LoRA 승격
+3. 외형 공장 → 에셋별 앵커 및 파생 이미지 확정
 4. 에피소드 만들기 → 샷 + 스냅 이미지 + 스토리보드 리뷰
    → 확정 → TTS 일괄 → Export JSON → 세계 갱신 → 반복
 ```
@@ -43,14 +43,14 @@ Story Engine은 직접 영상을 렌더링하지 않는다. 외부 Video Factory
 | 이미지 처리 | Sharp | 이미지 리사이징, 필터링 |
 | Database | Oracle 26ai | JSON Duality(메타데이터), Vector Search(장기 기억), Property Graph(인과관계) |
 | Cache/Queue | Redis + BullMQ | GPU 작업 큐, 컨텍스트 캐싱 |
-| GPU Worker | ComfyUI | Flux Dev(이미지 생성), PuLID(참조 얼굴), Kontext(파생 이미지), LoRA 학습 |
+| GPU Worker | ComfyUI | Flux Dev(이미지 생성), PuLID(참조 얼굴), Kontext(파생 이미지) |
 | 영상 생성 | Wan 2.2 (외부) | I2V 영상 렌더링, 립싱크 (Story Engine 범위 밖, 추후 연동) |
 
 ## 인프라 레이어
 
 ### Orchestration Layer (제어 중추)
 
-- **BullMQ**: GPU 작업 큐 (gpu:realtime / gpu:batch / gpu:training)
+- **BullMQ**: GPU 작업 큐 (gpu:realtime / gpu:batch)
 - **State Machine**: 에셋/에피소드별 파이프라인 상태 추적
 - **Error Handler**: LLM 응답 검증, ComfyUI 타임아웃, 자동 재시도
 - **Config Store**: 프로젝트별 설정값 (face_threshold, rag_top_k 등)

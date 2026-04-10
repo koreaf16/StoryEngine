@@ -1,7 +1,7 @@
 # Story Engine — GEMINI.md
 
 ## 프로젝트 개요
-Story Engine은 AI 영상 제작을 위한 오케스트레이터입니다. 직접 영상을 렌더링하지 않고, 외부 Video Factory가 GPU 연산을 시작할 수 있도록 촬영 대본(Shot List)과 렌더링 에셋(LoRA, TTS, SFX)을 자동 매핑합니다.
+Story Engine은 AI 영상 제작을 위한 오케스트레이터입니다. 직접 영상을 렌더링하지 않고, 외부 Video Factory가 GPU 연산을 시작할 수 있도록 촬영 대본(Shot List)과 렌더링 에셋(TTS, SFX)을 자동 매핑합니다.
 
 ## 핵심 목표 (Gemini CLI 역할)
 1. **기술 스택 준수**: React 19, Vite, Tailwind v4(프론트) 및 Node.js, Express, Oracle 26ai(백엔드) 환경에서 최적의 코드를 작성합니다.
@@ -13,7 +13,7 @@ Story Engine은 AI 영상 제작을 위한 오케스트레이터입니다. 직�
 - **Frontend**: React 19, Vite, Tailwind CSS v4, React Router v7, Zustand
 - **Backend**: Node.js, Express.js, `@vladmandic/face-api`, Sharp, oracledb, ws, multer
 - **Database**: Oracle 26ai (JSON Duality, Vector Search, Property Graph)
-- **AI/GPU**: ComfyUI (Flux Dev, PuLID, Kontext, LoRA training)
+- **AI/GPU**: ComfyUI (Flux Dev, PuLID, Kontext)
 
 ## 코딩 가이드라인
 ### 1. 파일 헤더 주석 (필수)

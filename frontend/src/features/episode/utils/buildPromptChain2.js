@@ -16,7 +16,7 @@ export default function buildPromptChain2({ episodeNumber, novelText, assets, de
     .join('\n')
 
   const demoInstruction = demoMode
-    ? '[데모 모드] 씬을 정확히 1개, 샷을 3~5개만 생성하라. 그 이상 생성하지 마라.'
+    ? '[데모 모드] 씬은 정확히 1개만 생성하라. 단, 그 씬의 샷은 충분히 생성하라 (8~15개). 내용이 풍부하면 최대 20개까지 가능하다. 각 샷은 개별 영상 클립이 된다.'
     : ''
 
   return PROMPT_CHAIN2_TEMPLATE

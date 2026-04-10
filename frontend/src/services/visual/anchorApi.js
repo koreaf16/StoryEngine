@@ -7,10 +7,9 @@
  */
 
 /**
- * Flux Dev로 앵커 후보 이미지를 SSE 스트리밍으로 하나씩 받아오는 비동기 제너레이터.
- * 완료된 후보부터 순서대로 yield. 마지막 이벤트 done:true에서 종료.
- * @param {AbortSignal} [signal] - fetch AbortController 시그널 (선택)
- * @yields {{index, image_id, grade, url, image_url}}
+ * Flux 1 Krea Dev로 앵커 후보 이미지를 SSE 스트리밍으로 하나씩 받아오는 비동기 제너레이터.
+ * @param {AbortSignal} [signal]
+ * @yields {{index, image_id, grade, image_url}}
  */
 export async function* generateAnchorCandidatesStream({ projectId, assetId, assetType, appearancePrompt, count = 8, visualStyle = 'PHOTOREALISTIC', signal }) {
   const res = await fetch('/api/visual/anchor/generate', {
@@ -28,48 +27,15 @@ export async function* generateAnchorCandidatesStream({ projectId, assetId, asse
   })
   if (!res.ok) throw new Error(`앵커 생성 실패: ${res.status}`)
 
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (value) {
-        buffer += decoder.decode(value, { stream: true })
-      }
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue
-        const raw = line.slice(6).trim()
-        if (!raw) continue
-        const payload = JSON.parse(raw)
-        if (payload.done) return
-        yield payload
-      }
-      if (done) {
-        if (buffer.startsWith('data: ')) {
-          const raw = buffer.slice(6).trim()
-          if (raw) {
-            const payload = JSON.parse(raw)
-            if (!payload.done) yield payload
-          }
-        }
-        break
-      }
-    }
-  } finally {
-    reader.cancel().catch(() => {})
-  }
+  yield* readSSEStream(res)
 }
 
 /**
- * PuLID + Flux Dev로 참조 사진 기반 앵커 후보 이미지를 SSE 스트리밍으로 받아오는 비동기 제너레이터.
+ * PuLID + Flux 1 Krea Dev로 참조 사진 기반 앵커 후보 이미지를 SSE 스트리밍으로 받아오는 비동기 제너레이터.
  * @param {File} file - 참조 사진 파일
- * @yields {{index, image_id, grade, url, image_url}}
+ * @yields {{index, image_id, grade, image_url}}
  */
-export async function* generatePulidAnchorCandidatesStream({ projectId, assetId, assetType, appearancePrompt, file, count = 5, weight = 0.85, visualStyle = 'PHOTOREALISTIC', signal }) {
+export async function* generatePulidAnchorCandidatesStream({ projectId, assetId, assetType, appearancePrompt, file, count = 5, weight = 0.8, visualStyle = 'PHOTOREALISTIC', signal }) {
   const formData = new FormData()
   formData.append('project_id', projectId)
   formData.append('asset_id', assetId)
@@ -87,6 +53,11 @@ export async function* generatePulidAnchorCandidatesStream({ projectId, assetId,
   })
   if (!res.ok) throw new Error(`PuLID 앵커 생성 실패: ${res.status}`)
 
+  yield* readSSEStream(res)
+}
+
+/** SSE 응답 스트림을 읽어 payload를 yield하는 공통 제너레이터 */
+async function* readSSEStream(res) {
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
@@ -94,9 +65,7 @@ export async function* generatePulidAnchorCandidatesStream({ projectId, assetId,
   try {
     while (true) {
       const { done, value } = await reader.read()
-      if (value) {
-        buffer += decoder.decode(value, { stream: true })
-      }
+      if (value) buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
       buffer = lines.pop() ?? ''
       for (const line of lines) {
@@ -125,7 +94,6 @@ export async function* generatePulidAnchorCandidatesStream({ projectId, assetId,
 
 /**
  * 앵커 이미지 확정 + 얼굴 임베딩 추출.
- * @returns {Promise<{image_id, grade, face_bbox, embedding, image_url}>}
  */
 export async function confirmAnchor({ projectId, assetId, candidateImageId }) {
   const res = await fetch('/api/visual/anchor/confirm', {
@@ -138,13 +106,11 @@ export async function confirmAnchor({ projectId, assetId, candidateImageId }) {
     }),
   })
   if (!res.ok) throw new Error(`앵커 확정 실패: ${res.status}`)
-  const data = await res.json()
-  return data
+  return res.json()
 }
 
 /**
- * 앵커 후보 이미지 업로드.
- * @returns {Promise<{index, image_id, grade, url, image_url}>}
+ * 앵커 후보 이미지 직접 업로드.
  */
 export async function uploadAnchorCandidate({ projectId, assetId, file, index }) {
   const formData = new FormData()
@@ -158,6 +124,5 @@ export async function uploadAnchorCandidate({ projectId, assetId, file, index })
     body: formData,
   })
   if (!res.ok) throw new Error(`앵커 업로드 실패: ${res.status}`)
-  const data = await res.json()
-  return data
+  return res.json()
 }

@@ -164,8 +164,15 @@ router.delete('/:projectId/episodes/:episodeId', async (req, res) => {
   const { episodeId } = req.params;
   try {
     await withConnection(async (conn) => {
+      // 1. 연관된 메모리/그래프 데이터 삭제
+      await conn.execute('DELETE FROM story_edges WHERE episode_id = :1', [episodeId]);
+      await conn.execute('DELETE FROM story_nodes WHERE episode_id = :1', [episodeId]);
+      await conn.execute('DELETE FROM scene_vectors WHERE episode_id = :1', [episodeId]);
+      
+      // 2. 샷 및 에피소드 삭제
       await conn.execute('DELETE FROM shots WHERE episode_id = :1', [episodeId]);
       await conn.execute('DELETE FROM episodes WHERE episode_id = :1', [episodeId]);
+      
       await conn.commit();
     });
     res.json({ status: 'ok' });

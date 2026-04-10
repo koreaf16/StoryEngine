@@ -34,8 +34,6 @@ export const PIPELINE_STATUS_LABELS = {
   ANCHOR_SELECTED: '앵커 확정',
   DERIVED_GENERATING: '파생 생성 중',
   DERIVED_FILTERED: '필터 완료',
-  LORA_TRAINING: 'LoRA 학습 중',
-  LORA_TRAINED: 'LoRA 완료',
 }
 
 export const PROFILE_STATUS_LABELS = {

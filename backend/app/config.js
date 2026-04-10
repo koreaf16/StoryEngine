@@ -12,7 +12,6 @@ require('dotenv').config();
 
 // ComfyUI
 const COMFYUI_BASE_URL = process.env.COMFYUI_URL || 'http://192.168.0.3:8189';
-const _isA100 = COMFYUI_BASE_URL === 'http://192.168.0.3:8189';
 
 // 서버별 input 폴더 기본값 (URL로 자동 분기)
 // 8188: Windows RTX3090  →  D:\ComfyUI\ComfyUI\input
@@ -41,24 +40,45 @@ const ORACLE_PASSWORD = process.env.ORACLE_PASSWORD || 'Gnttkak1!';
 const ORACLE_DSN = process.env.ORACLE_DSN || '192.168.0.120:1521/AI_DB';
 const ORACLE_INSTANT_CLIENT_PATH = process.env.ORACLE_INSTANT_CLIENT_PATH || 'C:\\instantclient_23_0';
 
-// Flux 2 Dev 모델명 (ComfyUI에 등록된 파일명 그대로)
-const FLUX2_MODEL = 'flux2_dev_fp8mixed.safetensors';
-const FLUX2_CLIP = 'mistral_3_small_flux2_fp8.safetensors';
-const FLUX2_VAE = 'flux2-vae.safetensors';
+// Flux 1 Krea Dev 모델명 (ComfyUI에 등록된 파일명 그대로)
+const FLUX_MODEL = process.env.FLUX_MODEL || 'flux1-krea-dev_fp8_scaled.safetensors';
 
-// PuLID Flux 모델 (ComfyUI-PuLID-Flux2 확장 필요)
-const PULID_MODEL = process.env.PULID_MODEL || 'pulid_flux2_klein_v2.safetensors';
+// Flux Kontext Dev — 파생 이미지 전용 (기준 이미지 + 편집 지시 네이티브 지원)
+const FLUX_KONTEXT_MODEL = process.env.FLUX_KONTEXT_MODEL || 'flux1-dev-kontext_fp8_scaled.safetensors';
+const FLUX_CLIP_L = 'clip_l.safetensors';
+const FLUX_T5 = 't5xxl_fp8_e4m3fn.safetensors';
+const FLUX_VAE = 'ae.safetensors';
+
+// Skin LoRA 설정 (Krea 모델 조합용)
+const SKIN_LORA_MODEL = 'Photorealistic_Skin_LoRA.safetensors';
+const SKIN_LORA_WEIGHT = 0.65;
+const SKIN_LORA_TRIGGER = 'aidmarealisticskin';
+
+// 한국인 미형 LoRA (예: Korean_Aesthetic_Flux)
+const K_AESTHETIC_LORA = 'korean_aesthetic_v1.safetensors';
+const K_AESTHETIC_WEIGHT = 0.6;
+const K_AESTHETIC_TRIGGER = 'korean aesthetic, k-girl, k-boy';
+
+// 실사 강화 LoRA (예: Realism_Fortifier)
+const REALISM_LORA = 'realism_fortifier_v1.safetensors';
+const REALISM_WEIGHT = 0.4;
+const REALISM_TRIGGER = 'cinematic photo, high fidelity';
+
+// PuLID Flux 1 모델 (ComfyUI-PuLID-Flux 확장 필요)
+const PULID_MODEL = process.env.PULID_MODEL || 'pulid_flux_v0.9.1.safetensors';
 const PULID_INSIGHTFACE_PROVIDER = process.env.PULID_INSIGHTFACE_PROVIDER || 'CPU';
 
 // 스냅 생성 참조 가중치
 const SNAP_PULID_WEIGHT = parseFloat(process.env.SNAP_PULID_WEIGHT || '0.5');
-const SNAP_IPADAPTER_WEIGHT = parseFloat(process.env.SNAP_IPADAPTER_WEIGHT || '0.6');
 const SNAP_MAX_ANCHOR_REFS = parseInt(process.env.SNAP_MAX_ANCHOR_REFS || '3', 10);
 
-// IP-Adapter Flux 모델
-const IPADAPTER_FLUX_MODEL = process.env.IPADAPTER_FLUX_MODEL || 'ip-adapter.bin';
-const IPADAPTER_CLIP_VISION = process.env.IPADAPTER_CLIP_VISION || 'google/siglip-so400m-patch14-384';
-const IPADAPTER_PROVIDER = process.env.IPADAPTER_PROVIDER || 'cuda';
+// 스냅 샘플링 파라미터 (환경변수로 오버라이드 가능)
+// steps 30: Flux Dev 커뮤니티 권장 28-50. 20은 디테일 부족.
+// guidance 3.5: 복잡한 5블록 프롬프트 준수를 위해. 2.5는 느슨함.
+// scheduler 'beta': 중간 단계에 더 많은 디노이징 할당. 미지원 시 'normal' 폴백.
+const SNAP_STEPS = parseInt(process.env.SNAP_STEPS || '30', 10);
+const SNAP_GUIDANCE = parseFloat(process.env.SNAP_GUIDANCE || '3.5');
+const SNAP_SCHEDULER = process.env.SNAP_SCHEDULER || 'beta';
 
 // LoRA Training — 서버별 기본값 테이블
 // 환경변수로 개별 오버라이드 가능. 새 서버 추가 시 이 테이블만 수정.
@@ -75,27 +95,36 @@ const _LORA_DEFAULTS = {
     cacheTextEncoder:      'memory',
     blocksToSwap:          0,
     fp8Base:               true,
-    transformer:           'FLUX1\\flux1-dev-fp8.safetensors',
+    transformer:           'flux1-krea-dev.safetensors',
     vae:                   'ae.safetensors',
     clipL:                 'clip_l.safetensors',
     t5:                    't5xxl_fp8_e4m3fn.safetensors',
+    loraTrainer:           'comfyui',  // ComfyUI-FluxTrainer (Flux 1)
   },
-  // 8189: Linux A100 (40GB) — VRAM 15GB 사용 / 25GB 여유 확인 (2026-04-06)
+  // 8189: Linux A100 (40GB) — GPU 2 전용, vLLM은 GPU 0,1 사용
+  // 커뮤니티 권장: AdamW8bit + rank 32 + 1200 steps + cosine_with_restarts → ~15-20분, 최고 품질
+  // ref: https://civitai.com/articles/11112 (rank32 character sweet spot)
+  //      https://discuss.huggingface.co/t/perfect-lora-training-parameters-human-character/147211
+  //      https://docs.clore.ai/guides/training/kohya-training (lr 1e-4, cosine_with_restarts, warmup)
   'http://192.168.0.3:8189': {
-    steps:                 1500,
-    rank:                  64,     // 15장 → rank 64 적용 (25GB 여유 활용)
-    alpha:                 32,
-    learningRate:          0.0004,
+    // 1200 steps × batch4 / (15이미지 × 10repeats) = 32 가상에포크 — 커뮤니티 sweet spot 20-35
+    steps:                 1200,
+    rank:                  32,     // 캐릭터 얼굴: rank16은 디테일 부족, 32가 sweet spot (HuggingFace forum)
+    alpha:                 16,     // rank/2 — 커뮤니티 표준 (civitai/11112)
+    learningRate:          0.0001, // 1e-4 — AdamW8bit 최고 품질 기준값 (clore.ai, HuggingFace forum)
     optimizer:             'AdamW8bit',
-    gradientCheckpointing: true,    // false 시 40GB에서도 OOM 확인 → enabled 고정
+    gradientCheckpointing: true,   // bf16 23GB + Flux 57-block activations = 38GB → OOM. GC 필수
     cacheLatents:          'memory',
     cacheTextEncoder:      'memory',
     blocksToSwap:          0,
-    fp8Base:               false,   // bf16 베이스 (+8GB) → gradient 정밀도 향상
-    transformer:           'FLUX1/flux1-dev-fp8.safetensors',
+    fp8Base:               false,  // 23GB bf16 모델: fp8 변환 중 23+12=35GB 피크 → OOM. 불필요
+    batchSize:             1,      // Flux 23GB + activations 1.7GB = ~25GB, 40GB에서 안정적
+    unetOnly:              true,   // text encoder LoRA 스킵 — 캐릭터 LoRA에 충분, 10-15% 속도 향상
+    transformer:           'flux1-krea-dev.safetensors',
     vae:                   'ae.safetensors',
     clipL:                 'clip_l.safetensors',
     t5:                    't5xxl_fp8_e4m3fn.safetensors',
+    loraTrainer:           'musubi',
   },
 };
 const _d = _LORA_DEFAULTS[COMFYUI_BASE_URL] || _LORA_DEFAULTS['http://192.168.0.3:8189'];
@@ -118,12 +147,14 @@ const LORA_MODEL_CLIP_L          = process.env.LORA_MODEL_CLIP_L || _d.clipL;
 const LORA_MODEL_T5              = process.env.LORA_MODEL_T5 || _d.t5;
 const LORA_BASE_MODEL            = process.env.LORA_BASE_MODEL || _d.transformer;
 const LORA_SUBFOLDER             = process.env.LORA_SUBFOLDER || 'story_engine';
-
-// Flux 1 Dev — 현재 미사용 (레거시). 스냅/LoRA 모두 Flux 2로 전환 완료.
-const FLUX_MODEL = 'flux1-dev-fp8.safetensors';
+const LORA_TRAINER               = process.env.LORA_TRAINER || _d.loraTrainer || 'comfyui';
+const LORA_OPTIMIZER_ARGS        = process.env.LORA_OPTIMIZER_ARGS || _d.optimizerArgs || '';
+const LORA_BATCH_SIZE            = parseInt(process.env.LORA_BATCH_SIZE || _d.batchSize || 2, 10);
+const LORA_UNET_ONLY             = process.env.LORA_UNET_ONLY ? process.env.LORA_UNET_ONLY !== 'false' : (_d.unetOnly ?? false);
 
 module.exports = {
   COMFYUI_BASE_URL,
+  FLUX_KONTEXT_MODEL,
   FACE_THRESHOLD,
   DEFAULT_CANDIDATE_COUNT,
   ANCHOR_WIDTH,
@@ -132,27 +163,38 @@ module.exports = {
   ORACLE_PASSWORD,
   ORACLE_DSN,
   ORACLE_INSTANT_CLIENT_PATH,
-  FLUX2_MODEL,
-  FLUX2_CLIP,
-  FLUX2_VAE,
+  FLUX_MODEL,
+  FLUX_CLIP_L,
+  FLUX_T5,
+  FLUX_VAE,
+  SKIN_LORA_MODEL,
+  SKIN_LORA_WEIGHT,
+  SKIN_LORA_TRIGGER,
+  K_AESTHETIC_LORA,
+  K_AEST_WEIGHT: K_AESTHETIC_WEIGHT,
+  K_AEST_TRIGGER: K_AESTHETIC_TRIGGER,
+  REALISM_LORA,
+  REAL_WEIGHT: REALISM_WEIGHT,
+  REAL_TRIGGER: REALISM_TRIGGER,
   PULID_MODEL,
   PULID_INSIGHTFACE_PROVIDER,
+  SNAP_PULID_WEIGHT,
+  SNAP_MAX_ANCHOR_REFS,
+  SNAP_STEPS,
+  SNAP_GUIDANCE,
+  SNAP_SCHEDULER,
   LORA_TRAINING_STEPS,
   LORA_RANK,
+  LORA_ALPHA,
   LORA_LEARNING_RATE,
   LORA_OPTIMIZER,
   LORA_BASE_MODEL,
   LORA_SUBFOLDER,
-  SNAP_PULID_WEIGHT,
-  SNAP_IPADAPTER_WEIGHT,
-  SNAP_MAX_ANCHOR_REFS,
-  IPADAPTER_FLUX_MODEL,
-  IPADAPTER_CLIP_VISION,
-  IPADAPTER_PROVIDER,
-  FLUX_MODEL,
-  COMFYUI_INPUT_DIR,
-  LORA_ALPHA,
   LORA_GRADIENT_CHECKPOINTING,
+  LORA_TRAINER,
+  LORA_OPTIMIZER_ARGS,
+  LORA_BATCH_SIZE,
+  LORA_UNET_ONLY,
   LORA_MODEL_TRANSFORMER,
   LORA_MODEL_VAE,
   LORA_MODEL_CLIP_L,
@@ -161,4 +203,5 @@ module.exports = {
   LORA_CACHE_TEXT_ENCODER,
   LORA_BLOCKS_TO_SWAP,
   LORA_FP8_BASE,
+  COMFYUI_INPUT_DIR,
 };

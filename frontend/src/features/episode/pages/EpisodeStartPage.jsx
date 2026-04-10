@@ -38,7 +38,7 @@ export default function EpisodeStartPage() {
   const nextEpisodeNumber = draftEpisode?.episode_number || confirmedEpisodes.length + 1
 
   const characters = (project.assets || []).filter(
-    (a) => a.asset_type === 'CHARACTER' || a.asset_type === 'NPC'
+    (a) => a.is_protagonist
   )
 
   const getResumeRoute = (ep) => {

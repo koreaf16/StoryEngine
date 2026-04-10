@@ -20,7 +20,7 @@ import CharacterConfirmPage from '../features/character/pages/CharacterConfirmPa
 import AssetSelectPage from '../features/visual/pages/AssetSelectPage.jsx'
 import AnchorSelectPage from '../features/visual/pages/AnchorSelectPage.jsx'
 import DerivedImagesFlowPage from '../features/visual/pages/DerivedImagesFlowPage.jsx'
-import LoraTrainingStatusPage from '../features/visual/pages/LoraTrainingStatusPage.jsx'
+import LoraGuidePage from '../features/visual/pages/LoraGuidePage.jsx'
 import AssetGalleryPage from '../features/visual/pages/AssetGalleryPage.jsx'
 import EpisodeListPage from '../features/episode/pages/EpisodeListPage.jsx'
 import EpisodeStartPage from '../features/episode/pages/EpisodeStartPage.jsx'
@@ -46,7 +46,7 @@ export default function AppRoutes() {
         <Route path="visual" element={<AssetSelectPage />} />
         <Route path="visual/:assetId/anchor" element={<AnchorSelectPage />} />
         <Route path="visual/:assetId/derived" element={<DerivedImagesFlowPage />} />
-        <Route path="visual/:assetId/complete" element={<LoraTrainingStatusPage />} />
+        <Route path="visual/:assetId/lora-guide" element={<LoraGuidePage />} />
         <Route path="visual/:assetId/gallery" element={<AssetGalleryPage />} />
         <Route path="episode" element={<EpisodeListPage />} />
         <Route path="episode/new" element={<EpisodeStartPage />} />

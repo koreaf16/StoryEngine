@@ -1,7 +1,7 @@
 /**
  * @file services/comfyui/workflows/visualStyleModifiers.js
  * @description 프로젝트 visual_style 및 assetType에 따라 앵커 이미지 프롬프트에 추가할 prefix/suffix 반환.
- * @usage buildFluxAnchor, buildPulidAnchor에서 호출.
+ * @usage buildFluxAnchor에서 호출.
  * @connects app/config.js의 visual_style 값 (PHOTOREALISTIC | CARTOON | ANIME | 3D_RENDER)
  * @doc docs/04-visual-factory.md
  */
@@ -9,24 +9,24 @@
 const STYLE_MODIFIERS = {
   PHOTOREALISTIC: {
     CHARACTER: {
-      prefix: 'ID photo style, passport photo, plain white background, ',
-      suffix: ', centered subject, clean white background, no background details, studio portrait lighting, sharp focus, high quality, photorealistic',
+      prefix: 'raw photo, a unique and candid ID photo of ',
+      suffix: ', detailed facial features, natural skin texture, masterpiece, highly detailed, centered subject, upper body visible, shoulders visible, plain white background, looking at camera, professional studio lighting, sharp focus, 8k resolution, cinematic lighting',
     },
     ITEM: {
       prefix: 'product photography style, plain white background, ',
       suffix: ', centered object, clean white background, no background details, studio lighting, sharp focus, high quality, photorealistic',
     },
     LOCATION: {
-      prefix: 'wide angle photography, ',
-      suffix: ', high quality, photorealistic, 8k resolution, cinematic lighting',
+      prefix: 'wide angle photography, cinematic environment, ',
+      suffix: ', high quality, photorealistic, 8k resolution, volumetric lighting, epic composition',
     },
     MONSTER: {
-      prefix: 'concept art photography, plain white background, ',
-      suffix: ', centered creature, clean white background, studio lighting, sharp focus, high quality, photorealistic',
+      prefix: 'concept art photography, cinematic creature design, ',
+      suffix: ', centered creature, dramatic lighting, sharp focus, high quality, photorealistic, hyper-detailed',
     },
     DEFAULT: {
-      prefix: 'photorealistic style, plain white background, ',
-      suffix: ', high quality, sharp focus',
+      prefix: 'photorealistic style, high quality, ',
+      suffix: ', sharp focus, cinematic lighting',
     }
   },
   CARTOON: {

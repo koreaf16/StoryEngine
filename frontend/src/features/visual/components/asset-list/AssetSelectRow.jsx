@@ -20,14 +20,14 @@ function PipelineStatusBadge({ status }) {
       </span>
     )
   }
-  if (status === 'LORA_TRAINED') {
+  if (status === 'DERIVED_FILTERED') {
     return (
       <span className="px-2 py-0.5 rounded text-xs bg-teal-500/20 text-teal-400 flex items-center gap-1">
         <span>✓</span> {label}
       </span>
     )
   }
-  if (status === 'ANCHOR_GENERATING' || status === 'DERIVED_GENERATING' || status === 'LORA_TRAINING') {
+  if (status === 'ANCHOR_GENERATING' || status === 'DERIVED_GENERATING') {
     return (
       <span className="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400 animate-pulse">
         {label}
@@ -47,13 +47,13 @@ export default function AssetSelectRow({ asset, projectId }) {
   const avatarBg = AVATAR_COLORS[asset.asset_type] ?? 'bg-slate-600'
   const typeLabel = ASSET_TYPE_LABELS[asset.asset_type] ?? asset.asset_type
   const progress = PIPELINE_ORDER[asset.pipeline_status] ?? 0
-  const maxProgress = 6
+  const maxProgress = 4
   const hasImages = !!asset.anchor_image
 
   function handleClick() {
     const base = `/project/${projectId}/visual/${asset.asset_id}`
-    if (progress >= 5) {
-      navigate(`${base}/complete`)
+    if (progress >= 4) {
+      navigate(`${base}/gallery`)
     } else if (progress >= 2) {
       navigate(`${base}/derived`)
     } else {
@@ -90,11 +90,6 @@ export default function AssetSelectRow({ asset, projectId }) {
             <span className={`px-1.5 py-0.5 rounded text-xs ${typeColor.bg} ${typeColor.text}`}>
               {typeLabel}
             </span>
-          )}
-          {asset.trigger_word && (
-            <code className="px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-400 text-[10px]">
-              {asset.trigger_word}
-            </code>
           )}
         </div>
         <p className="text-xs text-slate-500 truncate mt-0.5 max-w-md">

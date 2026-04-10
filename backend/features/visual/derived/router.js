@@ -28,19 +28,27 @@ router.post('/generate', async (req, res) => {
     'Connection': 'keep-alive',
   });
 
+  const ctrl = new AbortController();
+  res.on('close', () => ctrl.abort());
+
   res.write(`data: ${JSON.stringify({ started: true, total })}\n\n`);
 
   try {
     for await (const image of generateDerivedStream(
-      project_id, asset_id, asset_type, anchor_image_id, appearance_prompt, target_presets, outfit_prompt
+      project_id, asset_id, asset_type, anchor_image_id, appearance_prompt, target_presets, outfit_prompt, ctrl.signal
     )) {
+      if (ctrl.signal.aborted) break;
       res.write(`data: ${JSON.stringify(image)}\n\n`);
     }
   } catch (err) {
-    logError('derived.generate', err, { project_id, asset_id, asset_type, anchor_image_id });
+    if (!ctrl.signal.aborted) {
+      logError('derived.generate', err, { project_id, asset_id, asset_type, anchor_image_id });
+    }
   }
 
-  res.write('data: {"done": true}\n\n');
+  if (!ctrl.signal.aborted) {
+    res.write('data: {"done": true}\n\n');
+  }
   res.end();
 });
 

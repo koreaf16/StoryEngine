@@ -1,6 +1,6 @@
-﻿/**
+/**
  * @file features/visual/anchor/service.js
- * @description 앵커 이미지 생성 비즈니스 로직. ComfyUI Flux 2 Dev로 후보 N장 생성, 저장 및 채점 처리.
+ * @description 앵커 이미지 생성 비즈니스 로직. ComfyUI Flux 1 Krea Dev로 후보 N장 생성, 저장 및 채점 처리.
  * @usage features/visual/anchor/router.js에서 API 핸들러로 호출.
  * @connects services/comfyui/client.js, services/imageProcessing/, storage/oracle/blobStorage.js
  * @doc docs/04-visual-factory.md
@@ -16,11 +16,55 @@ const { ImageCategory } = require('../../../storage/constants');
 const { withConnection } = require('../../../app/database');
 const { logError } = require('../../../app/logger');
 
-async function generateOne(projectId, assetId, assetType, prompt, index, visualStyle = 'PHOTOREALISTIC', imageName = null, weight = 1.4) {
+const DIVERSITY_MODIFIERS = {
+  CHARACTER: [
+    'named Hanni, round face, big sparkling eyes, youthful vibe, school garden',
+    'named Minji, oval face, elegant straight nose, calm expression, library background',
+    'named Danielle, heart-shaped face, playful smile, bright features, bright sunlight',
+    'named Haerin, cat-like eyes, slim face, mysterious vibe, soft studio lighting',
+    'named Hyein, full lips, high cheekbones, fashion model look, urban night street',
+    'named Yuna, sharp jawline, almond-shaped eyes, sporty look, gym background',
+    'named Jisoo, classic symmetrical features, soft jawline, pure look, soft morning light',
+    'named Karina, sharp futuristic features, doll-like face, small head, neon lighting',
+  ],
+  NPC: [
+    'various facial structures, unique appearance, realistic lighting',
+    'different skin tones, distinct facial features, overcast weather',
+    'diverse eye shapes, various hair textures, high contrast lighting',
+  ]
+};
+
+const LIGHTING_MODIFIERS = [
+  'golden hour, warm orange glow',
+  'high-key lighting, bright and airy',
+  'cinematic moody lighting, deep shadows',
+  'soft pastel lighting, dreamy atmosphere',
+  'sharp side lighting, high contrast',
+  'natural window light, soft shadows',
+];
+
+function injectDiversity(prompt, assetType) {
+  const modifiers = DIVERSITY_MODIFIERS[assetType] || [];
+  const light = LIGHTING_MODIFIERS[Math.floor(Math.random() * LIGHTING_MODIFIERS.length)];
+  if (modifiers.length === 0) return `${light}, ${prompt}`;
+  const randomModifier = modifiers[Math.floor(Math.random() * modifiers.length)];
+  // 무작위 요소를 가장 앞에 배치하여 AI의 해석 우선순위를 높임
+  return `${randomModifier}, ${light}, ${prompt}`;
+}
+
+async function generateOne(projectId, assetId, assetType, prompt, index, visualStyle = 'PHOTOREALISTIC', imageName = null, weight = 0.8) {
   try {
+    const diversePrompt = injectDiversity(prompt, assetType);
+    
+    // 매번 다른 세팅값 주입 (Jittering)
+    const options = {
+      guidance: 2.5 + Math.random() * 2.0, // 2.5 ~ 4.5 사이 무작위
+      loraWeight: 0.4 + Math.random() * 0.3 // 0.4 ~ 0.7 사이 무작위
+    };
+
     const workflow = imageName
-      ? buildPulidAnchor(prompt, visualStyle, assetType, imageName, null, undefined, undefined, weight)
-      : buildFluxAnchor(prompt, visualStyle, assetType);
+      ? buildPulidAnchor(diversePrompt, visualStyle, assetType, imageName, null, undefined, undefined, weight)
+      : buildFluxAnchor(diversePrompt, visualStyle, assetType, null, undefined, undefined, options);
 
     const promptId = await comfyui.queuePrompt(workflow);
     const history = await comfyui.pollResult(promptId);
@@ -35,7 +79,7 @@ async function generateOne(projectId, assetId, assetType, prompt, index, visualS
 
     return { index, image_id: imageId, grade, image_url: `/api/visual/images/${imageId}` };
   } catch (err) {
-        logError('anchor.generateOne', err, { projectId, assetId, index, visualStyle, imageName, assetType });
+    logError('anchor.generateOne', err, { projectId, assetId, index, visualStyle, imageName, assetType });
     return null;
   }
 }
@@ -43,8 +87,7 @@ async function generateOne(projectId, assetId, assetType, prompt, index, visualS
 /**
  * 비동기 제너레이터: 후보 이미지가 완료되는 순서로 하나씩 yield.
  */
-async function* generateAnchorStream(projectId, assetId, assetType, appearancePrompt, count, visualStyle = 'PHOTOREALISTIC', imageName = null, weight = 1.4) {
-  // 플로우 전환 대비 VRAM 초기화 (LoRA 학습 등 직전 작업 잔류 메모리 해제)
+async function* generateAnchorStream(projectId, assetId, assetType, appearancePrompt, count, visualStyle = 'PHOTOREALISTIC', imageName = null, weight = 0.8) {
   await comfyui.freeMemory();
   for (let i = 0; i < count; i++) {
     const result = await generateOne(projectId, assetId, assetType, appearancePrompt, i, visualStyle, imageName, weight);
@@ -111,7 +154,6 @@ async function autoGenerateAnchor(projectId, assetId, assetType, appearancePromp
   const requiresFace = assetType === 'CHARACTER' || assetType === 'NPC';
   const maxAttempts = requiresFace ? 3 : 1;
 
-  // CHARACTER/NPC: 얼굴+의상을 하나의 프롬프트로 구성
   const fullPrompt = (requiresFace && outfitPrompt)
     ? `${appearancePrompt}, wearing ${outfitPrompt}`
     : appearancePrompt;
@@ -121,7 +163,6 @@ async function autoGenerateAnchor(projectId, assetId, assetType, appearancePromp
     if (!candidate) continue;
 
     if (!requiresFace) {
-      // 비캐릭터: 얼굴 감지 없이 바로 확정 (confirmAnchor는 CHARACTER/NPC에 얼굴 강제하므로 직접 UPDATE)
       await withConnection(async (conn) => {
         await conn.execute(
           `UPDATE assets SET anchor_image_id = :1, pipeline_status = 'ANCHOR_SELECTED'
@@ -133,12 +174,10 @@ async function autoGenerateAnchor(projectId, assetId, assetType, appearancePromp
       return { image_id: candidate.image_id, image_url: candidate.image_url, grade: candidate.grade };
     }
 
-    // CHARACTER/NPC: confirmAnchor 호출 (얼굴 감지 + 임베딩 저장)
     try {
       const result = await confirmAnchor(projectId, assetId, candidate.image_id);
       return result;
     } catch (err) {
-      // 얼굴 미감지 → 재시도
       logError('anchor.autoGenerate.faceNotFound', err, { projectId, assetId, attempt });
     }
   }
@@ -148,7 +187,3 @@ async function autoGenerateAnchor(projectId, assetId, assetType, appearancePromp
 }
 
 module.exports = { generateAnchorStream, confirmAnchor, uploadAnchorCandidate, autoGenerateAnchor };
-
-
-
-

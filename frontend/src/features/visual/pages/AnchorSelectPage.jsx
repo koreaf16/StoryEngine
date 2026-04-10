@@ -15,6 +15,7 @@ import AppearancePromptEditor from '../components/anchor/AppearancePromptEditor.
 import PhotoUpload from '../components/anchor/PhotoUpload.jsx'
 import CandidateGrid from '../components/anchor/CandidateGrid.jsx'
 import ComfyUIQueueStatus from '../components/anchor/ComfyUIQueueStatus.jsx'
+import DerivedImagesPreview from '../components/anchor/DerivedImagesPreview.jsx'
 
 export default function AnchorSelectPage() {
   const { id, assetId } = useParams()
@@ -24,7 +25,7 @@ export default function AnchorSelectPage() {
 
   const [method, setMethod] = useState('TEXT')
   const [count, setCount] = useState(5)
-  const [weight, setWeight] = useState(0.85)
+  const [weight, setWeight] = useState(0.8)
   const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [prompt, setPrompt] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
@@ -33,11 +34,8 @@ export default function AnchorSelectPage() {
     useAnchorGeneration(id, assetId)
   const { queue, progress, progressPct, wsConnected } = useComfyUIQueue(isGenerating)
 
-  // 에셋 로드 시 초기 프롬프트 설정
   useEffect(() => {
     if (asset?.appearance_prompt) {
-      // The draft prompt should follow the loaded asset on first mount.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPrompt(asset.appearance_prompt)
     }
   }, [asset?.appearance_prompt])
@@ -78,7 +76,7 @@ export default function AnchorSelectPage() {
         </button>
         <div>
           <h1 className="text-xl font-semibold text-slate-100">{asset.display_name} — 앵커 선택</h1>
-          <p className="text-sm text-slate-400 mt-0.5">기준 이미지를 선택합니다. 이 이미지가 LoRA 학습의 기준이 됩니다.</p>
+          <p className="text-sm text-slate-400 mt-0.5">기준 이미지를 선택합니다. 이 이미지가 향후 이미지 생성의 기준이 됩니다.</p>
         </div>
       </div>
 
@@ -107,13 +105,16 @@ export default function AnchorSelectPage() {
         </div>
       )}
 
+      {/* 파생 이미지 미리보기 */}
+      <DerivedImagesPreview images={asset.derived_images} />
+
       {/* 생성 방법 선택 */}
       <div className="space-y-3">
         <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider">생성 방법</h2>
         <MethodSelector value={method} onChange={setMethod} />
       </div>
 
-      {/* 외모 프롬프트 편집 - 두 모드 공통 */}
+      {/* 외모 프롬프트 편집 */}
       <AppearancePromptEditor
         value={prompt}
         onChange={setPrompt}
@@ -224,7 +225,7 @@ export default function AnchorSelectPage() {
         </div>
       )}
 
-      {/* 후보 그리드 — 생성 시작 즉시 슬롯 표시 */}
+      {/* 후보 그리드 */}
       {(candidates.length > 0 || isGenerating) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">

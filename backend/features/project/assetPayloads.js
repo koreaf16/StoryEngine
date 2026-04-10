@@ -55,8 +55,6 @@ function buildAssetPayload(row) {
         return val;
       }
     }
-    // If it's a Lob stream from oracledb, we can't synchronously return data.
-    // Assuming JSON_SERIALIZE or similar is used in SQL to return strings.
     return val;
   };
 

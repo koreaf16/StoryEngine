@@ -5,7 +5,7 @@
  * @connects useChainDesign, ChainProgressChecklist, PromptCopyPaste, useProjectStore
  * @doc docs/05-episode.md (Chain 2~5 흐름)
  */
-import { useParams, useLocation } from 'react-router-dom'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import useProjectStore from '../../../store/useProjectStore.js'
 import PromptCopyPaste from '../../../shared/components/patterns/PromptCopyPaste.jsx'
 import ChainProgressChecklist from '../components/chain/ChainProgressChecklist.jsx'
@@ -15,6 +15,7 @@ import useChainDesign from '../hooks/useChainDesign.js'
 export default function ChainDesignPage() {
   const { id, episodeId } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const project = useProjectStore((s) => s.getProject(id))
 
   const existingEpisode = project?.episodes?.find((ep) => ep.id === episodeId)
@@ -60,6 +61,26 @@ export default function ChainDesignPage() {
   }
 
   const current = phaseConfig[phase]
+
+  if (phase === 'CHAIN5_DONE') {
+    return (
+      <div className="p-6 space-y-6 max-w-3xl">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-100">에피소드 {episodeNumber} — 설계 완료</h1>
+          <p className="text-sm text-slate-400 mt-1">Chain 2~5가 모두 완료되었습니다.</p>
+        </div>
+        <ChainProgressChecklist phase={phase} />
+        <div className="flex justify-end">
+          <button
+            onClick={() => navigate(`/project/${id}/episode/${episodeId}/storyboard`)}
+            className="px-4 py-2 rounded-lg bg-teal-500 text-white text-sm font-medium hover:bg-teal-400 transition-colors"
+          >
+            스토리보드로 →
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">

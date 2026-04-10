@@ -19,7 +19,7 @@ const { logError } = require('../../../app/logger');
 const FACE_FILTER_ASSET_TYPES = new Set(['CHARACTER', 'NPC']);
 const SKIPPED_FILTER_ASSET_TYPES = new Set(['MONSTER', 'LOCATION', 'ITEM']);
 
-async function* generateDerivedStream(projectId, assetId, assetType, anchorImageId, appearancePrompt, targetPresets = null, outfitPrompt = '') {
+async function* generateDerivedStream(projectId, assetId, assetType, anchorImageId, appearancePrompt, targetPresets = null, outfitPrompt = '', signal = null) {
   let presets = PRESETS[assetType] || PRESETS.CHARACTER;
   if (targetPresets && targetPresets.length) {
     presets = presets.filter((p) => targetPresets.includes(p.key));
@@ -80,11 +80,12 @@ async function* generateDerivedStream(projectId, assetId, assetType, anchorImage
   const generatedMap = {}; // preset key → image_id
 
   for (const preset of presets) {
+    if (signal?.aborted) break;
     let result;
     if (preset.mirror_of && generatedMap[preset.mirror_of]) {
       result = await mirrorDerived(projectId, assetId, generatedMap[preset.mirror_of], preset);
     } else {
-      result = await generateOneDerived(projectId, assetId, comfyImageName, preset, outfitSuffix);
+      result = await generateOneDerived(projectId, assetId, comfyImageName, preset, outfitSuffix, appearancePrompt);
     }
     if (result) {
       generatedMap[preset.key] = result.image_id;
@@ -93,11 +94,12 @@ async function* generateDerivedStream(projectId, assetId, assetType, anchorImage
   }
 }
 
-async function generateOneDerived(projectId, assetId, comfyImageName, preset, outfitSuffix = '') {
+async function generateOneDerived(projectId, assetId, comfyImageName, preset, outfitSuffix = '', appearancePrompt = '') {
   try {
-    const editPrompt = (PRESET_PROMPTS[preset.key] || '').replace('{outfitPrompt}', outfitSuffix);
-    const seed = preset.seed_mode === 'fixed' ? FIXED_SEED : null;
-    const workflow = buildKontextEdit(comfyImageName, editPrompt, seed);
+    const editPrompt  = (PRESET_PROMPTS[preset.key] || '').replace('{outfitPrompt}', outfitSuffix);
+    const seed        = preset.seed_mode === 'fixed' ? FIXED_SEED : null;
+    const pulidWeight = preset.pulid_weight ?? 0.65;
+    const workflow    = buildKontextEdit(comfyImageName, editPrompt, seed, 3.5, pulidWeight);
 
     const promptId = await comfyui.queuePrompt(workflow);
     const history = await comfyui.pollResult(promptId);
@@ -164,7 +166,8 @@ async function filterDerivedImages(assetType, anchorEmbedding, images, faceThres
   const results = [];
   await withConnection(async (conn) => {
     for (const img of images) {
-      if (SKIPPED_FILTER_ASSET_TYPES.has(assetType) || img.skip_similarity) {
+      const isSadness = img.preset_key === 'face_sad' || img.preset_name === '슬픔';
+      if (SKIPPED_FILTER_ASSET_TYPES.has(assetType) || img.skip_similarity || isSadness) {
         await conn.execute(
           'UPDATE asset_derived_images SET face_distance = :1, is_passed = :2 WHERE image_id = :3',
           [null, null, img.image_id]

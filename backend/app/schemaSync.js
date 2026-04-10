@@ -30,6 +30,7 @@ const REQUIRED_SHOT_COLUMNS = {
 const REQUIRED_PROJECT_COLUMNS = {
   SEED: 'CLOB',
   VISUAL_STYLE: "VARCHAR2(30) DEFAULT 'PHOTOREALISTIC'",
+  WORLD_BACKBONE: 'CLOB',
 };
 
 async function ensureProjectColumns() {

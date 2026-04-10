@@ -135,6 +135,20 @@ C:/Dev/Story Engine/
 - 새로운 기능을 추가할 때 관련 docs 문서가 있으면 반드시 읽고, 변경 사항이 있으면 문서에 반영한다.
 - 문서 변경 시 변경 이유를 주석이나 커밋 메시지에 남긴다.
 
+### 5. AI 모델 관련 사항 — 인터넷 검색 최우선
+- **Flux, WAN2.1/2.2, LoRA 학습, PuLID, ControlNet 등 AI 모델과 관련된 모든 사항은 반드시 인터넷 검색을 먼저 수행한 뒤 답변하거나 코드를 작성한다.**
+- 훈련 내용(학습 파라미터), 추론 내용(워크플로우 파라미터) 모두 해당된다. 파라미터 예시: guidance, steps, sampler, scheduler, denoise, weight, learning_rate, rank, batch_size, resolution 등.
+- **절대 추측하거나 기억에 의존하지 않는다.** 모델별·GPU별·용도별로 최적값이 다르고 커뮤니티 권장값이 빠르게 바뀌므로, 항상 최신 정보를 검색한다.
+- 검색 대상 우선순위: 모델 제작자 공식 문서 → ComfyUI 공식 문서 → civitai → Reddit r/StableDiffusion → GitHub 이슈/디스커션.
+- 적용 시 해당 파라미터 옆에 출처 URL을 주석으로 반드시 남긴다.
+- 예시:
+  ```javascript
+  // Kontext Dev 커뮤니티 권장: guidance 2.5-4.0, euler+simple, 28 steps
+  // https://docs.comfy.org/tutorials/flux/flux-1-kontext-dev
+  guidance: 3.5,
+  steps: 28,
+  ```
+
 ---
 
 ## 디자인 토큰

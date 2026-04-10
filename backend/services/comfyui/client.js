@@ -37,7 +37,7 @@ class ComfyUIClient {
   async queuePrompt(workflow) {
     const payload = { prompt: workflow, client_id: this.clientId };
     try {
-      const resp = await axios.post(`${this.baseUrl}/prompt`, payload, { timeout: 30000 });
+      const resp = await axios.post(`${this.baseUrl}/prompt`, payload, { timeout: 60000 });
       return resp.data.prompt_id;
     } catch (err) {
       if (err.response?.data) {
@@ -50,11 +50,15 @@ class ComfyUIClient {
     }
   }
 
-  async pollResult(promptId, interval = 1500, maxWait = 300000) {
+  async pollResult(promptId, interval = 1500, maxWait = 600000) {
     const deadline = Date.now() + maxWait;
     while (Date.now() < deadline) {
-      const resp = await axios.get(`${this.baseUrl}/history/${promptId}`, { timeout: 10000 });
-      if (resp.data[promptId]) return resp.data[promptId];
+      try {
+        const resp = await axios.get(`${this.baseUrl}/history/${promptId}`, { timeout: 15000 });
+        if (resp.data[promptId]) return resp.data[promptId];
+      } catch (err) {
+        // network hiccups ignored during polling
+      }
       await new Promise((r) => setTimeout(r, interval));
     }
     throw new Error(`ComfyUI: prompt ${promptId} did not complete in ${maxWait / 1000}s`);

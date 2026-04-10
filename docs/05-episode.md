@@ -250,20 +250,18 @@ Layer 1  앰비언스 (공간음)       ← -20 ~ -24 dB
 
 각 샷의 `render_prompt`를 Flux에 넣어 프리뷰 이미지를 생성.
 
+> 운영 메모: 8189 A100 서버는 `--normalvram`으로 기동한다.
+
 - 오토 바인딩 완료 상태이므로 LoRA 있는 에셋은 LoRA 적용
 - 비율/크기: 1024×576 (16:9, Wan 2.2 I2V 시작 프레임 표준)
 - 최종 영상과 동일 품질일 필요 없음. 프리뷰 + Wan 2.2 I2V 시작 프레임 용도
 - GPU 큐: `gpu:realtime` (최우선)
 
-### 3중 참조 파이프라인 (fluxSnapWithAnchors.js)
+### 참조 파이프라인 (fluxSnap.js)
 
-1. **LoRA 체인** (Tier 1): LORA_TRAINED 에셋 → trigger_word + LoRA 가중치 적용
-2. **PuLID** (Tier 2): CHARACTER/NPC 얼굴 앵커 → 얼굴 정체성 주입
-   - 사용 모델: `pulid_flux_v0.9.1.safetensors` (Flux 1 Dev 호환, 환경변수 `PULID_MODEL`로 변경 가능)
-3. **IP-Adapter** (Tier 2): 의상/스타일 앵커 → 비주얼 스타일 참조
-
-> **주의**: PuLID 모델 파일이 ComfyUI에 없으면 스냅 생성이 완전히 실패한다.
-> 사용 가능한 파일 목록은 ComfyUI의 models/pulid/ 폴더 또는 /object_info API에서 확인.
+1. **LoRA 체인**: LORA_TRAINED 에셋 → trigger_word + LoRA 가중치 적용
+   - LoRA가 없는 에셋은 텍스트 프롬프트(appearance_prompt)로 폴백
+2. **ModelSamplingFlux**: LoRA 체인 이후 Flux 1 Dev용 타임스텝 시프트 패처 적용
 
 ## 6. 스토리보드 UI
 

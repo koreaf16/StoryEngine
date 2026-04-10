@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file features/visual/anchor/router.js
  * @description 앵커 이미지 생성 및 확정 API (/api/visual/anchor/*).
  * @usage features/visual/router.js에서 마운트.
@@ -14,7 +14,7 @@ const { logError } = require('../../../app/logger');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// POST /api/visual/anchor/generate  (SSE)
+// POST /api/visual/anchor/generate  (SSE, 텍스트 기반)
 router.post('/generate', async (req, res) => {
   const { project_id, asset_id, asset_type, appearance_prompt, count = 8, visual_style = 'PHOTOREALISTIC' } = req.body;
   res.writeHead(200, {
@@ -33,12 +33,11 @@ router.post('/generate', async (req, res) => {
   res.end();
 });
 
-// POST /api/visual/anchor/generate-pulid  (SSE, multipart)
+// POST /api/visual/anchor/generate-pulid  (SSE, 참조 사진 기반)
 router.post('/generate-pulid', upload.single('file'), async (req, res) => {
-  const { project_id, asset_id, asset_type = 'CHARACTER', appearance_prompt = '', count = 4, weight = 0.85, visual_style = 'PHOTOREALISTIC' } = req.body;
+  const { project_id, asset_id, asset_type = 'CHARACTER', appearance_prompt = '', count = 4, weight = 0.8, visual_style = 'PHOTOREALISTIC' } = req.body;
   const imageBuffer = req.file.buffer;
 
-  // ComfyUI에 참조 사진 업로드
   let imageName;
   try {
     const uploadResult = await comfyui.uploadImage(imageBuffer, `ref_${asset_id}.png`);
@@ -94,7 +93,6 @@ router.post('/auto-generate', async (req, res) => {
 // POST /api/visual/anchor/auto-generate-batch  (복수 에셋 일괄 자동 생성)
 router.post('/auto-generate-batch', async (req, res) => {
   const { project_id, assets } = req.body;
-  // assets: [{ asset_id, asset_type, appearance_prompt, visual_style? }]
   const results = [];
   for (const asset of assets) {
     try {
@@ -123,9 +121,3 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 });
 
 module.exports = router;
-
-
-
-
-
-

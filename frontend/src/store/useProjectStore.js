@@ -185,25 +185,20 @@ const useProjectStore = create((set, get) => ({
       projects: s.projects.map((p) => p.id === projectId ? { ...p, assets: p.assets.map((a) => a.asset_id === assetId ? { ...a, derived_images: images, pipeline_status: status } : a) } : p),
     })),
 
-  setLoraTraining: (projectId, assetId, loraResult) =>
-    set((s) => ({
-      currentProject: s.currentProject?.id === projectId ? {
-        ...s.currentProject,
-        assets: s.currentProject.assets.map(a => a.asset_id === assetId ? { ...a, lora_result: loraResult, pipeline_status: 'LORA_TRAINING' } : a)
-      } : s.currentProject,
-      projects: s.projects.map((p) => p.id === projectId ? { ...p, assets: p.assets.map((a) => a.asset_id === assetId ? { ...a, lora_result: loraResult, pipeline_status: 'LORA_TRAINING' } : a) } : p),
-    })),
+  // ── Character 액션 ──────────────────────────────────────────
+  saveCharacterProfile: async (projectId, assetId, profile, status = 'AUTO') => {
+    await api.updateCharacterProfile(projectId, assetId, { ...profile, profile_status: status })
+    // local update
+    set((s) => {
+      const updateAssetFunc = a => a.asset_id === assetId ? { ...a, ...profile, profile_status: status } : a
+      return {
+        currentProject: s.currentProject?.id === projectId ? { ...s.currentProject, assets: s.currentProject.assets.map(updateAssetFunc) } : s.currentProject,
+        projects: s.projects.map((p) => p.id === projectId ? { ...p, assets: p.assets.map(updateAssetFunc) } : p),
+      }
+    })
+  },
 
-  completeLoraTraining: (projectId, assetId, loraResult) =>
-    set((s) => ({
-      currentProject: s.currentProject?.id === projectId ? {
-        ...s.currentProject,
-        assets: s.currentProject.assets.map(a => a.asset_id === assetId ? { ...a, trigger_word: loraResult.trigger_word ?? a.trigger_word, lora_path: loraResult.lora_path ?? a.lora_path, lora_result: loraResult, visual_strategy: 'LORA', pipeline_status: 'LORA_TRAINED' } : a)
-      } : s.currentProject,
-      projects: s.projects.map((p) => p.id === projectId ? { ...p, assets: p.assets.map((a) => a.asset_id === assetId ? { ...a, trigger_word: loraResult.trigger_word ?? a.trigger_word, lora_path: loraResult.lora_path ?? a.lora_path, lora_result: loraResult, visual_strategy: 'LORA', pipeline_status: 'LORA_TRAINED' } : a) } : p),
-    })),
-
-  // LoRA 삭제 후 에셋을 DERIVED_FILTERED 상태로 초기화
+  // LoRA 연결 해제 후 에셋을 DERIVED_FILTERED 상태로 초기화
   resetLoraAsset: (projectId, assetId) =>
     set((s) => {
       const resetAsset = (a) => a.asset_id === assetId
@@ -218,19 +213,6 @@ const useProjectStore = create((set, get) => ({
           : p),
       }
     }),
-
-  // ── Character 액션 ──────────────────────────────────────────
-  saveCharacterProfile: async (projectId, assetId, profile, status = 'AUTO') => {
-    await api.updateCharacterProfile(projectId, assetId, { ...profile, profile_status: status })
-    // local update
-    set((s) => {
-      const updateAssetFunc = a => a.asset_id === assetId ? { ...a, ...profile, profile_status: status } : a
-      return {
-        currentProject: s.currentProject?.id === projectId ? { ...s.currentProject, assets: s.currentProject.assets.map(updateAssetFunc) } : s.currentProject,
-        projects: s.projects.map((p) => p.id === projectId ? { ...p, assets: p.assets.map(updateAssetFunc) } : p),
-      }
-    })
-  },
 
   confirmCharacterProfile: async (projectId, assetId) => {
     await api.updateCharacterProfile(projectId, assetId, { profile_status: 'CONFIRMED' })
@@ -252,7 +234,6 @@ const useProjectStore = create((set, get) => ({
         anchor_image: null,
         anchor_embedding: null,
         derived_images: [],
-        lora_result: null,
         visual_strategy: 'PROMPT',
       } : a
       return {

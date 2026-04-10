@@ -14,7 +14,7 @@ const CHAINS = [
   { key: 'CHAIN5', label: 'Chain 5 — 영상 프롬프트', desc: 'Wan2.2 I2V 프롬프트' },
 ]
 
-const PHASE_ORDER = ['CHAIN1', 'CHAIN2', 'CHAIN3', 'CHAIN4', 'CHAIN5']
+const PHASE_ORDER = ['CHAIN1', 'CHAIN2', 'CHAIN3', 'CHAIN4', 'CHAIN5', 'CHAIN5_DONE']
 
 function getStatus(chainKey, currentPhase) {
   if (chainKey === 'CHAIN3') return 'skip'

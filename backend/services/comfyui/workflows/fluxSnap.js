@@ -1,38 +1,61 @@
 /**
  * @file services/comfyui/workflows/fluxSnap.js
- * @description Flux 2 Dev 텍스트→이미지 스냅 워크플로우 빌더 (LoRA 지원). 스토리보드 프리뷰 + Wan 2.2 I2V 시작 프레임 용도.
+ * @description Flux 1 Krea Dev 텍스트→이미지 스냅 워크플로우 빌더 (LoRA 지원). 스토리보드 프리뷰 + Wan 2.2 I2V 시작 프레임 용도.
  * @usage features/episode/snap/service.js에서 호출.
  * @connects ComfyUI Server
  * @doc docs/05-episode.md (5. 스냅 이미지 생성)
  */
-const { FLUX2_MODEL, FLUX2_CLIP, FLUX2_VAE } = require('../../../app/config');
+const {
+  FLUX_MODEL,
+  FLUX_CLIP_L,
+  FLUX_T5,
+  FLUX_VAE,
+  SKIN_LORA_MODEL,
+  SKIN_LORA_WEIGHT,
+  SKIN_LORA_TRIGGER,
+  SNAP_STEPS,
+  SNAP_GUIDANCE,
+  SNAP_SCHEDULER,
+} = require('../../../app/config');
 
 const SNAP_WIDTH = 1024;
 const SNAP_HEIGHT = 576;
-const SNAP_STEPS = 20;
 
 /**
- * Flux 2 Dev 텍스트→이미지 스냅 워크플로우 빌더 (LoRA 지원).
- * - render_prompt를 스타일 모디파이어 없이 그대로 사용
+ * Flux 1 Krea Dev 기반 텍스트→이미지 스냅 워크플로우 빌더 (Skin LoRA 기본 적용).
+ * - render_prompt 앞부분에 SKIN_LORA_TRIGGER 자동 삽입
  * - 해상도: 1024×576 (16:9 landscape)
  * - loras: [{ path: 'filename.safetensors', strength: 1.0 }] 배열을 받아 체인 연결
  */
 function buildFluxSnap(renderPrompt, seed = null, loras = [], width = SNAP_WIDTH, height = SNAP_HEIGHT) {
   const resolvedSeed = seed ?? Math.floor(Math.random() * 2 ** 32);
+  const enhancedPrompt = `${renderPrompt}, ${SKIN_LORA_TRIGGER}`;
 
   const workflow = {
-    '10': { class_type: 'VAELoader',  inputs: { vae_name: FLUX2_VAE } },
-    '12': { class_type: 'UNETLoader', inputs: { unet_name: FLUX2_MODEL, weight_dtype: 'default' } },
-    '38': { class_type: 'CLIPLoader', inputs: { clip_name: FLUX2_CLIP, type: 'flux2', device: 'default' } },
-    '5':  { class_type: 'EmptyFlux2LatentImage', inputs: { width, height, batch_size: 1 } },
-    '7':  { class_type: 'CLIPTextEncode', inputs: { text: '', clip: ['38', 0] } },
+    '10': { class_type: 'VAELoader',  inputs: { vae_name: FLUX_VAE } },
+    '12': { class_type: 'UNETLoader', inputs: { unet_name: FLUX_MODEL, weight_dtype: 'default' } },
+    '11': {
+      class_type: 'DualCLIPLoader',
+      inputs: { clip_name1: FLUX_T5, clip_name2: FLUX_CLIP_L, type: 'flux' },
+    },
+    '5':  { class_type: 'EmptyLatentImage', inputs: { width, height, batch_size: 1 } },
+    '15': {
+      class_type: 'LoraLoader',
+      inputs: {
+        lora_name: SKIN_LORA_MODEL,
+        strength_model: SKIN_LORA_WEIGHT,
+        strength_clip: 1.0,
+        model: ['12', 0],
+        clip: ['11', 0],
+      },
+    },
   };
 
-  let lastModel = ['12', 0];
-  let lastClip  = ['38', 0];
-  let nodeId = 50; // 고정 노드(5,7,10,12,38)와 충돌 방지
+  let lastModel = ['15', 0];
+  let lastClip  = ['15', 1];
+  let nodeId = 50; // 고정 노드와 충돌 방지
 
-  // LoRA 체인
+  // 캐릭터 전용 LoRA 체인
   if (Array.isArray(loras) && loras.length > 0) {
     for (const lora of loras) {
       const id = String(nodeId++);
@@ -51,7 +74,14 @@ function buildFluxSnap(renderPrompt, seed = null, loras = [], width = SNAP_WIDTH
     }
   }
 
-  // 텍스트 인코딩 + Flux 2 샘플링
+  // ModelSamplingFlux: Flux 1 Dev용 모델 패처 (LoRA 체인 이후 적용)
+  const modelPatcherId = String(nodeId++);
+  workflow[modelPatcherId] = {
+    class_type: 'ModelSamplingFlux',
+    inputs: { model: lastModel, max_shift: 1.15, base_shift: 0.5, width, height },
+  };
+
+  // 텍스트 인코딩 + Flux 샘플링
   const clipEncodeId = String(nodeId++);
   const guidanceId   = String(nodeId++);
   const guiderId     = String(nodeId++);
@@ -64,19 +94,19 @@ function buildFluxSnap(renderPrompt, seed = null, loras = [], width = SNAP_WIDTH
 
   workflow[clipEncodeId] = {
     class_type: 'CLIPTextEncode',
-    inputs: { text: renderPrompt, clip: lastClip },
+    inputs: { text: enhancedPrompt, clip: lastClip },
   };
   workflow[guidanceId] = {
     class_type: 'FluxGuidance',
-    inputs: { conditioning: [clipEncodeId, 0], guidance: 3.5 },
+    inputs: { conditioning: [clipEncodeId, 0], guidance: SNAP_GUIDANCE },
   };
   workflow[guiderId] = {
     class_type: 'BasicGuider',
-    inputs: { model: lastModel, conditioning: [guidanceId, 0] },
+    inputs: { model: [modelPatcherId, 0], conditioning: [guidanceId, 0] },
   };
   workflow[schedulerId] = {
-    class_type: 'Flux2Scheduler',
-    inputs: { steps: SNAP_STEPS, width, height },
+    class_type: 'BasicScheduler',
+    inputs: { model: [modelPatcherId, 0], scheduler: SNAP_SCHEDULER, steps: SNAP_STEPS, denoise: 1.0 },
   };
   workflow[samplerSelId] = {
     class_type: 'KSamplerSelect',

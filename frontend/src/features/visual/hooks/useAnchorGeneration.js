@@ -24,14 +24,13 @@ export default function useAnchorGeneration(projectId, assetId) {
   const updateAsset = useProjectStore((s) => s.updateAsset)
   const getProject = useProjectStore((s) => s.getProject)
 
-  // 에셋이 바뀌면 기존 후보 초기화
   useEffect(() => {
     const asset = getProject(projectId)?.assets?.find((a) => a.asset_id === assetId)
     const saved = asset?.anchor_candidates ?? []
     setCandidates(saved)
   }, [projectId, assetId, getProject])
 
-  const generate = useCallback(async (prompt, count = 5, file = null, weight = 0.85) => {
+  const generate = useCallback(async (prompt, count = 5, file = null, weight = 0.8) => {
     const project = getProject(projectId)
     const visualStyle = project?.visual_style || 'PHOTOREALISTIC'
     const asset = project?.assets?.find((a) => a.asset_id === assetId)
@@ -41,7 +40,7 @@ export default function useAnchorGeneration(projectId, assetId) {
     abortCtrlRef.current = ctrl
     setIsGenerating(true)
     setError(null)
-    setCandidates([])  // 새 생성 시작 즉시 기존 후보 클리어
+    setCandidates([])
 
     const collected = []
     try {
@@ -52,7 +51,7 @@ export default function useAnchorGeneration(projectId, assetId) {
       for await (const candidate of stream) {
         if (ctrl.signal.aborted) break
         collected.push(candidate)
-        setCandidates([...collected])  // 완료된 이미지 하나씩 추가
+        setCandidates([...collected])
       }
       if (!ctrl.signal.aborted) {
         setAnchorCandidates(projectId, assetId, collected)
@@ -73,14 +72,7 @@ export default function useAnchorGeneration(projectId, assetId) {
     setIsUploading(true)
     setError(null)
     try {
-      // 업로드 시에는 현재 candidates 뒤에 추가하거나, 새로 시작할지 결정 가능.
-      // 여기서는 '사진 업로드' 모드에서 새로 올리는 느낌이므로, 기존 candidates 뒤에 붙여줌.
-      const candidate = await uploadAnchorCandidate({
-        projectId,
-        assetId,
-        file,
-        index: candidates.length
-      })
+      const candidate = await uploadAnchorCandidate({ projectId, assetId, file, index: candidates.length })
       const newCandidates = [...candidates, candidate]
       setCandidates(newCandidates)
       setAnchorCandidates(projectId, assetId, newCandidates)
@@ -101,11 +93,9 @@ export default function useAnchorGeneration(projectId, assetId) {
       await fetch('/api/visual/comfyui/interrupt', { method: 'POST' })
     } catch (err) {
       logError('useAnchorGeneration.stop', err, { projectId, assetId })
-      // 인터럽트 실패 무시
     }
   }, [projectId, assetId])
 
-  // candidateImageId: 선택된 후보 이미지의 image_id
   const confirm = useCallback(async (candidateImageId) => {
     setIsConfirming(true)
     setError(null)

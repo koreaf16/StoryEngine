@@ -19,11 +19,13 @@ export const createEpisodeSlice = (set) => ({
 
   deleteEpisode: async (projectId, episodeId) => {
     await episodeApi.deleteEpisode(projectId, episodeId)
-    const removeEp = (p) => p.id === projectId
-      ? { ...p, episodes: (p.episodes || []).filter((ep) => ep.id !== episodeId) }
+    const removeEp = (p) => String(p.id) === String(projectId)
+      ? { ...p, episodes: (p.episodes || []).filter((ep) => String(ep.id) !== String(episodeId)) }
       : p
     set((s) => ({
-      currentProject: s.currentProject?.id === projectId ? removeEp(s.currentProject) : s.currentProject,
+      currentProject: s.currentProject?.id && String(s.currentProject.id) === String(projectId) 
+        ? removeEp(s.currentProject) 
+        : s.currentProject,
       projects: s.projects.map(removeEp),
     }))
   },

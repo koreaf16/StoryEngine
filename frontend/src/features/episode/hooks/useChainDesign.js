@@ -27,7 +27,14 @@ export default function useChainDesign({ projectId, episodeId, episodeNumber }) 
 
   const existingEpisode = project?.episodes?.find((ep) => ep.id === episodeId)
   const [scenes, setScenes] = useState(() => existingEpisode?.scenes || [])
-  const [phase, setPhase] = useState(() => scenes.length > 0 ? 'CHAIN4' : 'CHAIN2')
+  const [phase, setPhase] = useState(() => {
+    const s = existingEpisode?.scenes || []
+    if (!s.length) return 'CHAIN2'
+    const allShots = s.flatMap((sc) => sc.shots || [])
+    if (allShots.length > 0 && allShots.every((sh) => sh.video_prompt)) return 'CHAIN5_DONE'
+    if (allShots.length > 0 && allShots.every((sh) => sh.render_prompt)) return 'CHAIN5'
+    return 'CHAIN4'
+  })
   const [newAssets, setNewAssets] = useState([])
   const [error, setError] = useState('')
 
